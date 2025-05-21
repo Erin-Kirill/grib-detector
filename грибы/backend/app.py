@@ -1,42 +1,49 @@
-from flask import Flask, request, render_template, jsonify
-from keras.models import load_model
-from keras.preprocessing import image
+from flask import Flask, request, render_template
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
 import numpy as np
 import os
 
 app = Flask(__name__)
-model = load_model('model.h5')  # Укажи путь к своей модели
-class_names = sorted(os.listdir('dataset/грибы/съедобные грибы')) + sorted(os.listdir('dataset/грибы/несъедобные грибы'))
 
-def prepare_image(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))  # Изменить на нужный размер
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array / 255.0
-    return img_array
+# Загружаем модель
+model = load_model('mushroom_classifier_model_final.h5')
 
-@app.route('/')
+# Получаем классы из структуры train_data
+class_names = sorted(os.listdir('train_data'))
+
+# Предобработка изображения
+def preprocess_image(img_path):
+    img = load_img(img_path, target_size=(160, 160))
+    img_array = img_to_array(img) / 255.0
+    return np.expand_dims(img_array, axis=0), img
+
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    prediction = None
+    top_predictions = []
+    image_path = None
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'file' not in request.files:
-        return jsonify({'error': 'Нет файла'})
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if file and file.filename != '':
+            save_folder = os.path.join('static', 'uploads')
+            os.makedirs(save_folder, exist_ok=True)
+            img_path = os.path.join(save_folder, file.filename)
+            file.save(img_path)
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'Файл не выбран'})
+            img_array, _ = preprocess_image(img_path)
+            pred = model.predict(img_array)[0]
 
-    filepath = os.path.join('static', 'uploads', file.filename)
-    file.save(filepath)
+            top_indices = pred.argsort()[-4:][::-1]
+            top_predictions = [(class_names[i], round(pred[i] * 100, 2)) for i in top_indices]
+            prediction = top_predictions[0][0].upper()
+            image_path = '/' + img_path.replace('\\', '/')
 
-    img = prepare_image(filepath)
-    prediction = model.predict(img)
-    predicted_class = class_names[np.argmax(prediction)]
-
-    return jsonify({'class': predicted_class, 'filename': file.filename})
+    return render_template('index.html',
+                           prediction=prediction,
+                           top_predictions=top_predictions,
+                           image_path=image_path)
 
 if __name__ == '__main__':
-    os.makedirs('static/uploads', exist_ok=True)
     app.run(debug=True)
