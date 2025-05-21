@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Определение гриба</title>
+  <meta charset="UTF-8">
+  <title>Гриб-распознаватель</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-green-50 min-h-screen flex items-center justify-center p-4">
   <div class="bg-white shadow-2xl rounded-2xl p-8 max-w-xl w-full">
     <h1 class="text-2xl font-bold text-center mb-6 text-green-700">Распознавание грибов по фото</h1>
-    
-    <form action="/predict" method="post" enctype="multipart/form-data" class="flex flex-col items-center space-y-4">
+
+    <form action="/" method="post" enctype="multipart/form-data" class="flex flex-col items-center space-y-4">
       <input type="file" name="file" accept="image/*" required
              class="file:border file:border-green-300 file:px-4 file:py-2 file:rounded-full file:text-green-600 hover:file:bg-green-100" />
       <button type="submit"
@@ -22,9 +21,18 @@
     {% if prediction %}
     <div class="mt-8 text-center">
       <h2 class="text-xl font-semibold text-gray-800">Результат:</h2>
-      <p class="text-lg mt-2">Класс: <span class="font-bold text-green-700">{{ prediction }}</span></p>
-      <p class="text-lg">Уверенность: {{ confidence }}%</p>
-      <img src="{{ image_path }}" alt="Загруженное изображение" class="mt-4 w-64 h-auto mx-auto rounded-lg shadow" />
+      <p class="text-lg mt-2">Наиболее вероятный класс: <span class="font-bold text-green-700">{{ prediction }}</span></p>
+
+      <div class="mt-4 text-left">
+        <h3 class="text-md font-semibold text-gray-600 mb-2">ТОП-4 вероятных:</h3>
+        <ul class="list-disc list-inside text-gray-800">
+          {% for label, conf in top_predictions %}
+            <li>{{ label }} — {{ conf }}%</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <img src="{{ image_path }}" alt="Изображение" class="mt-4 w-64 h-auto mx-auto rounded-lg shadow" />
     </div>
     {% endif %}
   </div>
